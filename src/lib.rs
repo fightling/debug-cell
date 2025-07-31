@@ -85,7 +85,7 @@ impl<T> RefCell<T> {
     /// Consumes the `RefCell`, returning the wrapped value.
     pub fn into_inner(self) -> T {
         debug_assert!(self.borrow.flag.get() == UNUSED);
-        unsafe { self.value.into_inner() }
+        self.value.into_inner()
     }
 }
 
@@ -136,16 +136,16 @@ impl<T: ?Sized> RefCell<T> {
     #[cfg(debug_assertions)]
     #[allow(unused_must_use)]
     fn panic(&self, msg: &str) -> ! {
-        let mut msg = format!("RefCell<T> already {}", msg);
+        let mut msg = format!("RefCell<T> already {msg}");
         let locations = self.borrow.locations.borrow();
-        if locations.len() > 0 {
+        if !locations.is_empty() {
             msg.push_str("\ncurrent active borrows: \n");
             for b in locations.iter() {
-                msg.push_str(&format!("-------------------------\n{:?}\n", b));
+                msg.push_str(&format!("-------------------------\n{b:?}\n"));
             }
             msg.push_str("\n\n");
         }
-        panic!(msg)
+        panic!("{}", msg)
     }
 }
 
@@ -153,7 +153,9 @@ impl<T: ?Sized> RefCell<T> {
 impl BorrowFlag {
     #[inline]
     fn new() -> BorrowFlag {
-        BorrowFlag { flag: Cell::new(UNUSED) }
+        BorrowFlag {
+            flag: Cell::new(UNUSED),
+        }
     }
 
     #[inline]
@@ -200,13 +202,12 @@ impl<T: Clone> Clone for RefCell<T> {
     }
 }
 
-impl<T:Default> Default for RefCell<T> {
+impl<T: Default> Default for RefCell<T> {
     #[inline]
     fn default() -> RefCell<T> {
         RefCell::new(Default::default())
     }
 }
-
 
 impl<T: ?Sized + PartialEq> PartialEq for RefCell<T> {
     #[inline]
@@ -226,10 +227,12 @@ impl<'b> BorrowRef<'b> {
     #[cfg_attr(not(debug_assertions), inline)]
     fn new(borrow: &'b BorrowFlag) -> Option<BorrowRef<'b>> {
         let flag = borrow.flag.get();
-        if flag == WRITING { return None }
+        if flag == WRITING {
+            return None;
+        }
         borrow.flag.set(flag + 1);
         borrow.push(get_caller());
-        Some(BorrowRef { borrow: borrow })
+        Some(BorrowRef { borrow })
     }
 }
 
@@ -247,14 +250,12 @@ impl<'b> Drop for BorrowRef<'b> {
 /// A wrapper type for an immutably borrowed value from a `RefCell<T>`.
 ///
 /// See the [module-level documentation](index.html) for more.
-
 pub struct Ref<'b, T: ?Sized + 'b> {
     // FIXME #12808: strange name to try to avoid interfering with
     // field accesses of the contained type via Deref
     _value: &'b T,
     _borrow: BorrowRef<'b>,
 }
-
 
 impl<'b, T: ?Sized> Deref for Ref<'b, T> {
     type Target = T;
@@ -271,10 +272,12 @@ impl<'b> BorrowRefMut<'b> {
     #[cfg_attr(debug_assertions, inline(never))]
     #[cfg_attr(not(debug_assertions), inline)]
     fn new(borrow: &'b BorrowFlag) -> Option<BorrowRefMut<'b>> {
-        if borrow.flag.get() != UNUSED { return None }
+        if borrow.flag.get() != UNUSED {
+            return None;
+        }
         borrow.flag.set(WRITING);
         borrow.push(get_caller());
-        Some(BorrowRefMut { borrow: borrow })
+        Some(BorrowRefMut { borrow })
     }
 }
 
@@ -294,7 +297,6 @@ pub struct RefMut<'b, T: ?Sized + 'b> {
     _value: &'b mut T,
     _borrow: BorrowRefMut<'b>,
 }
-
 
 impl<'b, T: ?Sized> Deref for RefMut<'b, T> {
     type Target = T;
