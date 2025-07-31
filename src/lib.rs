@@ -39,6 +39,7 @@ use std::cell::{Cell, UnsafeCell};
 use std::ops::{Deref, DerefMut};
 
 /// A clone of the standard library's `RefCell` type.
+#[derive(Debug)]
 pub struct RefCell<T: ?Sized> {
     borrow: BorrowFlag,
     value: UnsafeCell<T>,
@@ -63,6 +64,7 @@ pub enum BorrowState {
 
 // Values [1, MAX-1] represent the number of `Ref` active
 // (will not outgrow its range since `usize` is the size of the address space)
+#[derive(Debug)]
 struct BorrowFlag {
     flag: Cell<usize>,
 
@@ -86,6 +88,11 @@ impl<T> RefCell<T> {
     pub fn into_inner(self) -> T {
         debug_assert!(self.borrow.flag.get() == UNUSED);
         self.value.into_inner()
+    }
+
+    /// returns a pointer to the wrapped value
+    pub fn as_ptr(&self) -> *mut T {
+        self.value.get()
     }
 }
 
@@ -218,6 +225,7 @@ impl<T: ?Sized + PartialEq> PartialEq for RefCell<T> {
 
 impl<T: ?Sized + Eq> Eq for RefCell<T> {}
 
+#[derive(Debug)]
 struct BorrowRef<'b> {
     borrow: &'b BorrowFlag,
 }
@@ -250,6 +258,7 @@ impl<'b> Drop for BorrowRef<'b> {
 /// A wrapper type for an immutably borrowed value from a `RefCell<T>`.
 ///
 /// See the [module-level documentation](index.html) for more.
+#[derive(Debug)]
 pub struct Ref<'b, T: ?Sized + 'b> {
     // FIXME #12808: strange name to try to avoid interfering with
     // field accesses of the contained type via Deref
